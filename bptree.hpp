@@ -373,8 +373,8 @@ private:
         else {
             file_tree.seekg(pos * sizeof(Node) + len_of_head_tree);
             file_tree.read(reinterpret_cast<char *>(&node), sizeof(Node));
-            write_node(node);
         }
+        write_node(node);
     }
 
     void read_leaf(Leaf &lef, int pos) {
@@ -383,8 +383,8 @@ private:
         else {
             file_leaf.seekg(pos * sizeof(Leaf) + len_of_head_leaf);
             file_leaf.read(reinterpret_cast<char *>(&lef), sizeof(Leaf));
-            write_leaf(lef);
         }
+        write_leaf(lef);
     }
 
     int binary_search_leaf_val(const std::pair<Key, T> &val, const Leaf &lef) {
