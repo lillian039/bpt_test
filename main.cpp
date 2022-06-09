@@ -63,8 +63,7 @@ int main() {
             sjtu::vector<int> ans = bpTree.Find(val.first);
             if (!ans.empty()) {
                 for (int i = 0; i < ans.size() - 1; i++)printf("%d ", ans[i]);
-                printf("%d", ans[ans.size() - 1]);
-                std::cout<<std::endl;
+                printf("%d\n", ans[ans.size() - 1]);
             } else puts("null");
         } else if (cmd[0] == 'd') {
             scanf("%s%d", val.first.index, &val.second);
