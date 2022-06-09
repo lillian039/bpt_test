@@ -1,6 +1,7 @@
 #ifndef BPTREE_HPP_BPTREE2_HPP
 #define BPTREE_HPP_BPTREE2_HPP
 #include <fstream>
+#include "bufferList.hpp"
 template<class Key, class T, int M = 500, int L = 500>
 class BPTree {
 private:
@@ -14,14 +15,18 @@ private:
         int pos, n;
         int A[M];
         std::pair<Key, T> K[M - 1];//K[now]>=A[now]中所有元素 0base
+        int position(){return pos;}
     };
 
     struct Leaf {
         int nxt, pos;
         int n;
         std::pair<Key, T> value[L];//0 base
+        int position(){return pos;}
     };
 
+    bufferList<Node>node_buffer;
+    bufferList<Leaf>leaf_buffer;
     Node root;
     Leaf leaf;
 public:
@@ -63,6 +68,18 @@ public:
         write_node(root);
         file_leaf.write(reinterpret_cast<char *>(&rear_leaf), sizeof(int));
         file_leaf.write(reinterpret_cast<char *>(&sum_data), sizeof(int));
+        while(!node_buffer.empty()){
+            Node tmp=node_buffer.pop_back();
+       //     std::cout<<tmp.pos<<std::endl;
+            file_tree.seekg(tmp.pos* sizeof(Node)+len_of_head_tree);
+            file_tree.write(reinterpret_cast<char *>(&tmp), sizeof(Node));
+        }
+        while(!leaf_buffer.empty()){
+            Leaf tmp=leaf_buffer.pop_back();
+         //   std::cout<<tmp.pos<<std::endl;
+            file_leaf.seekg(tmp.pos* sizeof(Leaf)+len_of_head_leaf);
+            file_leaf.write(reinterpret_cast<char *>(&tmp), sizeof(Leaf));
+        }
         file_leaf.close();
         file_tree.close();
     }
@@ -102,15 +119,30 @@ public:
         return ans;
     }
 
+    T find(const Key &key){
+        T val;
+        Node p = root;
+        while (!p.is_leaf)read_node(p, p.A[binary_search_node(key, p)]);//A[now]中元素小于等于Key[now] 循环找到叶节点
+        read_leaf(leaf, p.A[binary_search_node(key, p)]);//找到叶子节点
+        int now = binary_search_leaf(key, leaf);
+        return leaf.value[now].second;
+    }
+
     void remove(const std::pair<Key, T> &val) {
         if (Remove(val, root)) {
             if (!root.is_leaf && root.n == 1) {//若根只有一个儿子，且根不为叶子，将儿子作为新的根
                 //            std::cout<<"change_root!"<<std::endl;
                 Node son;
                 read_node(son, root.A[0]);
+                node_buffer.remove(root.pos);
                 root = son;
             }
         }
+    }
+
+    void modify (const std::pair<Key, T> &val,T new_val){
+        remove(val);
+        insert(std::make_pair(val.first,new_val));
     }
 
 private:
@@ -123,7 +155,6 @@ private:
             if (pos_leaf==leaf.n|| leaf.value[pos_leaf] != val) {
                 return false;//删除失败 return false}
             }
-
 
             leaf.n--, sum_data--;
             for (int i = pos_leaf; i < leaf.n; i++)leaf.value[i] = leaf.value[i + 1];//移动删除数据
@@ -165,6 +196,7 @@ private:
                     pre.n += leaf.n;
                     pre.nxt = leaf.nxt;
                     write_leaf(pre);
+                    leaf_buffer.remove(leaf.pos);
                     fa.n--;
                     //更新fa的关键字和数据
                     for (int i = pos_node; i < fa.n; i++)fa.A[i] = fa.A[i + 1];
@@ -180,6 +212,7 @@ private:
                     leaf.n += nxt.n;
                     leaf.nxt = nxt.nxt;
                     write_leaf(leaf);
+                    leaf_buffer.remove(nxt.pos);
                     fa.n--;
                     //更新fa的关键字和数据
                     for (int i = pos_node + 1; i < fa.n; i++)fa.A[i] = fa.A[i + 1];
@@ -236,6 +269,7 @@ private:
                 for (int i = 0; i < son.n - 1; i++)pre.K[pre.n + i] = son.K[i];
                 pre.n += son.n;
                 write_node(pre);
+                node_buffer.remove(son.pos);
                 fa.n--;
                 for (int i = now; i < fa.n; i++)fa.A[i] = fa.A[i + 1];
                 for (int i = now - 1; i < fa.n - 1; i++)fa.K[i] = fa.K[i + 1];
@@ -250,6 +284,7 @@ private:
                 for (int i = 0; i < nxt.n - 1; i++)son.K[son.n + i] = nxt.K[i];
                 son.n += nxt.n;
                 write_node(son);
+                node_buffer.remove(nxt.pos);
                 fa.n--;
                 for (int i = now + 1; i < fa.n; i++)fa.A[i] = fa.A[i + 1];
                 for (int i = now; i < fa.n - 1; i++)fa.K[i] = fa.K[i + 1];
@@ -316,24 +351,40 @@ private:
 
     }
 
-    void write_node(Node &node) {
-        file_tree.seekg(node.pos * sizeof(Node) + len_of_head_tree);
-        file_tree.write(reinterpret_cast<char *>(&node), sizeof(Node));
+    void write_node(const Node &node) {
+        std::pair<bool,Node>buffer=node_buffer.insert(node);
+        if(buffer.first) {
+            file_tree.seekg(buffer.second.pos * sizeof(Node) + len_of_head_tree);
+            file_tree.write(reinterpret_cast<char *>(&buffer.second), sizeof(Node));
+        }
     }
 
-    void write_leaf(Leaf &lef) {
-        file_leaf.seekg(lef.pos * sizeof(Leaf) + len_of_head_leaf);
-        file_leaf.write(reinterpret_cast<char *>(&lef), sizeof(Leaf));
+    void write_leaf(const Leaf &lef) {
+        std::pair<bool,Leaf>buffer=leaf_buffer.insert(lef);
+        if(buffer.first) {
+            file_leaf.seekg(buffer.second.pos * sizeof(Leaf) + len_of_head_leaf);
+            file_leaf.write(reinterpret_cast<char *>(&buffer.second), sizeof(Leaf));
+        }
     }
 
     void read_node(Node &node, int pos) {
-        file_tree.seekg(pos * sizeof(Node) + len_of_head_tree);
-        file_tree.read(reinterpret_cast<char *>(&node), sizeof(Node));
+        std::pair<bool,Node>buffer=node_buffer.find(pos);
+        if(buffer.first)node=buffer.second;
+        else {
+            file_tree.seekg(pos * sizeof(Node) + len_of_head_tree);
+            file_tree.read(reinterpret_cast<char *>(&node), sizeof(Node));
+            write_node(node);
+        }
     }
 
     void read_leaf(Leaf &lef, int pos) {
-        file_leaf.seekg(pos * sizeof(Leaf) + len_of_head_leaf);
-        file_leaf.read(reinterpret_cast<char *>(&lef), sizeof(Leaf));
+        std::pair<bool,Leaf>buffer=leaf_buffer.find(pos);
+        if(buffer.first)lef=buffer.second;
+        else {
+            file_leaf.seekg(pos * sizeof(Leaf) + len_of_head_leaf);
+            file_leaf.read(reinterpret_cast<char *>(&lef), sizeof(Leaf));
+            write_leaf(lef);
+        }
     }
 
     int binary_search_leaf_val(const std::pair<Key, T> &val, const Leaf &lef) {
