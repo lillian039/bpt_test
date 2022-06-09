@@ -2,7 +2,7 @@
 #define BPTREE_HPP_BUFFERLIST_HPP
 
 
-template<class T, int L = 100>
+template<class T, int L = 20>
 class bufferList {
 private:
     int size = 0;
