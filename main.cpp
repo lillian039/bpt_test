@@ -1,8 +1,8 @@
 #include <iostream>
 #include <cstdio>
+#include <cstring>
 #include "vector.hpp"
 #include "bptree.hpp"
-
 
 struct String {
     char index[65];
@@ -46,8 +46,8 @@ struct String {
 };
 
 int main() {
-  //  freopen("5.in","r",stdin);
-  //  freopen("me.out","w",stdout);
+   // freopen("5.in","r",stdin);
+   // freopen("me.out","w",stdout);
     BPTree<String, int> bpTree("test");
     std::pair<String, int> val;
     int cnt;
@@ -69,14 +69,7 @@ int main() {
             scanf("%s%d", val.first.index, &val.second);
             bpTree.remove(val);
         }
-        else if(cmd[0]=='g'){
-            scanf("%s", val.first.index);
-            printf("%s : ",val.first.index);
-            int ans=bpTree.find(val.first);
-            printf("%d\n",ans);
-        }
+
     }
-     //  remove("test_file_tree");
-      // remove("test_file_leaf");
     return 0;
 }
